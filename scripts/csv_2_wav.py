@@ -23,7 +23,7 @@ with open(csv_file, 'r') as f:
         translation = row[1]
         # per 0-4, 0为女声，1为男声，3为情感合成-度逍遥，4为情感合成-度丫丫
         result  = client.synthesis(translation, 'zh', 1, {
-            'vol': 5, 'per': 0,
+            'vol': 5, 'per': 4, "spd": 4,
         })
 
         # 识别正确返回语音二进制 错误则返回dict 参照下面错误码
