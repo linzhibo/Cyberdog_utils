@@ -1,6 +1,23 @@
 from aip import AipSpeech
 import os
 import csv
+import wave 
+import io 
+from pydub import AudioSegment
+
+def mp3_to_wav(data, wav_path):
+    aud = io.BytesIO(data)
+    sound = AudioSegment.from_file(aud, format="mp3")
+    raw_data = sound._data 
+
+    nframes = len(raw_data)
+    f = wave.open(wav_path, 'wb')
+    f.setnchannels(1)
+    f.setsampwidth(2)
+    f.setframerate(16000)
+    f.setnframes(nframes)
+    f.writeframes(raw_data)
+    f.close()
 
 APP_ID = '24846657'
 API_KEY = 'pgnBOTAtFMCkxXHGseNhBcbc'
@@ -28,9 +45,8 @@ with open(csv_file, 'r') as f:
 
         # 识别正确返回语音二进制 错误则返回dict 参照下面错误码
         if not isinstance(result, dict):
-            with open(os.path.join(wav_dst_folder, wav_file_name), 'wb') as f:
-                f.write(result)
-                print("synthetizing ", wav_file_name)
+            mp3_to_wav(result, os.path.join(wav_dst_folder, wav_file_name))
+            print("synthetizing ", wav_file_name)
         else:
             print("unable to synthetize ", wav_file_name)
             print(result)
