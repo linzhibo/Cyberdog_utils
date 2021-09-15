@@ -53,10 +53,7 @@ sudo apt install xserver-xorg-input-joystick
 
 # TODO
 
-<input type="checkbox" checked /> put the wav dir path on the jetson nx out
-
-<input type="checkbox" checked /> Disable SLAM related programs at system start(rtab msckf), courtesy to [homalozoa](https://github.com/homalozoa) see [solution](https://github.com/linzhibo/Cyberdog_utils/issues/1#issue-996182833).
-
-<input type="checkbox" enabled /> Disable audio and talker at system start
-
-<input type="checkbox" enabled /> Write joystock teleop with switch joycons, ref: https://github.com/ros2/teleop_twist_joy
+- [x] put the wav dir path on the jetson nx out
+- [x] Disable SLAM related programs at system start(rtab msckf), courtesy to [homalozoa](https://github.com/homalozoa), see [solution](https://github.com/linzhibo/Cyberdog_utils/issues/1#issue-996182833).
+- [ ] Disable audio and talker at system start
+- [ ] Write joystock teleop with switch joycons, ref: https://github.com/ros2/teleop_twist_joy
