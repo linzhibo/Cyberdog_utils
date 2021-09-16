@@ -48,8 +48,11 @@ scp ../data/wav/* mi@192.168.3.86:/opt/ros2/cyberdog/data/wav/
 replace ip, reboot the robot.
 
 ## Joystick control (testing)
-
-sudo apt install xserver-xorg-input-joystick
+A lot of the code is based on [Karlsx's code](https://github.com/Karlsx/CyberDog_Ctrl)
+```
+python3 -m grpc_tools.protoc --python_out=. --grpc_python_out=. -I. ./proto/*.proto
+sudo pip3 install pygame grpcio grpcio-tools
+```
 
 # TODO
 
