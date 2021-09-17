@@ -50,9 +50,12 @@ replace ip, reboot the robot.
 ## Joystick control (testing)
 A lot of the code is based on [Karlsx's code](https://github.com/Karlsx/CyberDog_Ctrl)
 ```
-python3 -m grpc_tools.protoc --python_out=. --grpc_python_out=. -I. ./proto/*.proto
 sudo pip3 install pygame grpcio grpcio-tools
+python3 -m grpc_tools.protoc --python_out=. --grpc_python_out=. -I. ./proto/*.proto
+cd scripts/
+python3 joy.py
 ```
+It should work with all available joyticks listed in /dev/input/js* .
 
 # TODO
 
