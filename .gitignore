@@ -1,3 +1,4 @@
 data/wav/
 proto/*.py
 __pycache__/
+keyboard_test.py
