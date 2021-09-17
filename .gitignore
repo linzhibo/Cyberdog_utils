@@ -1,2 +1,3 @@
 data/wav/
 proto/*.py
+__pycache__/
