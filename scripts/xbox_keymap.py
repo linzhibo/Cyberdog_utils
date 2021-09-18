@@ -30,10 +30,10 @@ class xbox():
     LB=4;                                 RB=5
 
     ...;                                  Y=3
-    LLR=0;      BB=6; GB=10; SB=7;      X=2; B=1
+    LLR=0;      BB=6; GB=8; SB=7;      X=2; B=1
     LUD=1;                                A=0
-    LSI=8
+    LSI=9
 
-    ...; HU=[1,0];                     RLR=3
-    HL=[0,-1]; HR=[0,1];               RUD=4
-    ...; HD=[-1,0];                    RSI=9
+    ...; HU=[0,1];                     RLR=3
+    HL=[-1,0]; HR=[1,0];               RUD=4
+    ...; HD=[0,-1];                    RSI=10

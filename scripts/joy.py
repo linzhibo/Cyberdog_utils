@@ -5,7 +5,7 @@ import xbox_keymap
 import grpc
 import proto.athena_common_athena_grpc_protos_cyberdog_app_pb2 as cyberdog_app_pb2
 import proto.athena_common_athena_grpc_protos_cyberdog_app_pb2_grpc as cyberdog_app_pb2_grpc
-
+import time
 xbox =xbox_keymap.xbox()
 
 def print_dict(dictonary):
@@ -22,6 +22,8 @@ class joy_control():
 
         self.stub = None
         self.cyberdog_ip = "192.168.3.86"  # to be modified 
+        # self.cyberdog_ip = "localhost"  # to be modified 
+
         self.deadzone = 0.3
         self.speed = 0.2
 
@@ -69,7 +71,7 @@ class joy_control():
                                "GAIT_BOUND" :       10,
                                "GAIT_PRONK" :       11
                               }
-        self.gait_list = list(self.available_gait.keys())
+        self.gait_list = list(self.available_gait.values())
         self.gait_iter = 0
         self.gait_len = len(self.available_gait)
         self.gait_key = {xbox.LB:-1,xbox.RB:1} 
@@ -102,12 +104,17 @@ class joy_control():
 
     def send_cmd(self, cmd_dict):
         # print_dict(cmd_dict)
+        if (len(cmd_dict)==0):
+            return
         twist = cyberdog_app_pb2.Twist()
+        # twist.linear.x = cmd_dict["axis_1"] * self.speed
+        # twist.linear.y = cmd_dict["axis_3"] * self.speed 
+        # twist.angular.z = cmd_dict["axis_0"] * self.speed
         
         if self.mad_dog_mode:
-            twist.linear.y = cmd_dict["axis_0"] * self.speed
-            twist.angular.x = cmd_dict["axis_4"] * self.speed 
-            twist.angular.y = cmd_dict["axis_1"] * self.speed
+            twist.linear.z = cmd_dict["axis_1"] * self.speed
+            twist.angular.x = cmd_dict["axis_0"] * self.speed *5
+            twist.angular.y = cmd_dict["axis_4"] * self.speed
             twist.angular.z = cmd_dict["axis_3"] * self.speed
         else:
             twist.linear.x = cmd_dict["axis_1"] * self.speed
@@ -124,20 +131,27 @@ class joy_control():
         request.patternstamped.pattern.gait_pattern = gait_id
         response = self.stub.setPattern(request)
         # print("Execute gait_id " +str(gait_id) +" result:" + str(response.succeed))
-        print("Execute gait_id ", list(self.available_gait.keys())[list(self.available_gait.values()).index(gait_id)])
-        pygame.time.wait(1000)
+        if (gait_id ==5):
+            print("mad dog activated")
+        else:
+            self.mad_dog_mode = 0
+            print("Execute gait_id ", list(self.available_gait.keys())[list(self.available_gait.values()).index(gait_id)])
+        pygame.time.wait(100)
 
     def set_current_speed(self, speed):
         if (speed < 0):
             self.speed = max(0.2, self.speed + speed)
         if (speed > 0):
             self.speed = min(2.0, self.speed + speed)
-        print("set speed to: ", speed, " m/s")
+        print("set speed to: ", self.speed, " m/s")
     
     def set_cmd_level(self, level):
-        print("secret command "+ ["locked, unlocked"][level])
+        print("secret command "+ ["locked", "unlocked"][level])
         self.mad_dog_mode = level
-        [self.trot(), self.set_gait(gait_id=5)][level]
+        if level:
+            self.set_gait(gait_id=5)
+        else:
+            self.trot()
         
     def set_ai_token(self, vol = 5):
         tr = cyberdog_app_pb2.TokenPass_Request()
@@ -163,7 +177,7 @@ class joy_control():
     def send_order(self, order_id):
         request = cyberdog_app_pb2.ExtMonOrder_Request()
         request.order.id = order_id
-        request.timeput = 10
+        request.timeout = 10
         print("send order: ", list(self.available_order.keys())[list(self.available_order.values()).index(order_id)])
 
     def trot(self):
@@ -182,16 +196,17 @@ class joy_control():
             channel = grpc.insecure_channel(self.cyberdog_ip + ':50051')
             self.stub = cyberdog_app_pb2_grpc.CyberdogAppStub(channel)
             self.set_ai_token()
-            self.stand_up()
-            self.trot()
+            # self.stand_up()
+            # self.trot()
             self.dog_init = 1
             print("doggo started with: ", self.cyberdog_ip + ':50051')
 
     def run(self):
         running = True
+        joystick_count = pygame.joystick.get_count()
         while running:
+            t1 = time.time()
             self.dog_start()
-            joystick_count = pygame.joystick.get_count()
             cmd = {}
             for i in range(joystick_count):
                 joystick = pygame.joystick.Joystick(i)
@@ -236,18 +251,19 @@ class joy_control():
                         elif joystick.get_button(xbox.BB):
                             self.get_down()
 
-                        hats = joystick.get_numhats()
-                        for i in range(hats):
-                            hat = joystick.get_hat(i)
-                            if hat !=[0,0]:
-                                self.check_sc(hat)
+                    hats = joystick.get_numhats()
+                    for i in range(hats):
+                        hat = list(joystick.get_hat(i))
+                        if hat !=[0,0]:
+                            self.check_sc(hat)
 
-                    axes = joystick.get_numaxes()
-                    for i in range(axes):
-                        axis = joystick.get_axis(i)
-                        cmd.update({"axis_"+str(i): (-axis if abs(axis) > self.deadzone else 0)})
+                axes = joystick.get_numaxes()
+                for i in range(axes):
+                    axis = joystick.get_axis(i)
+                    cmd.update({"axis_"+str(i): (-axis if abs(axis) > self.deadzone else 0)})
+            # print(time.time() - t1)
             self.send_cmd(cmd)
-            self.clock.tick(30)
+            self.clock.tick(20)
         pygame.quit()
 
 if __name__ == '__main__':
