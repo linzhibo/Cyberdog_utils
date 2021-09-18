@@ -1,12 +1,12 @@
 import sys
 sys.path.insert(0, "../")
 import pygame
-import xbox_keymap 
+import switch_keymap 
 import grpc
 import proto.athena_common_athena_grpc_protos_cyberdog_app_pb2 as cyberdog_app_pb2
 import proto.athena_common_athena_grpc_protos_cyberdog_app_pb2_grpc as cyberdog_app_pb2_grpc
 import time
-xbox =xbox_keymap.xbox()
+xbox =switch_keymap.xbox()
 
 def print_dict(dictonary):
     print("---"*10)
@@ -111,14 +111,15 @@ class joy_control():
         # twist.linear.y = cmd_dict["axis_3"] * self.speed 
         # twist.angular.z = cmd_dict["axis_0"] * self.speed
         
+        #TODO replace axis name correctly
         if self.mad_dog_mode:
             twist.linear.z = cmd_dict["axis_1"] * self.speed
             twist.angular.x = cmd_dict["axis_0"] * self.speed *5
-            twist.angular.y = cmd_dict["axis_4"] * self.speed
-            twist.angular.z = cmd_dict["axis_3"] * self.speed
+            twist.angular.y = cmd_dict["axis_3"] * self.speed
+            twist.angular.z = cmd_dict["axis_2"] * self.speed
         else:
             twist.linear.x = cmd_dict["axis_1"] * self.speed
-            twist.linear.y = cmd_dict["axis_3"] * self.speed 
+            twist.linear.y = cmd_dict["axis_2"] * self.speed 
             twist.angular.z = cmd_dict["axis_0"] * self.speed
 
         try:
