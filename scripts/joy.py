@@ -1,9 +1,12 @@
 import sys
 sys.path.insert(0, "../")
 import pygame
+import xbox_keymap 
 import grpc
 import proto.athena_common_athena_grpc_protos_cyberdog_app_pb2 as cyberdog_app_pb2
 import proto.athena_common_athena_grpc_protos_cyberdog_app_pb2_grpc as cyberdog_app_pb2_grpc
+
+xbox =xbox_keymap.xbox()
 
 def print_dict(dictonary):
     print("---"*10)
@@ -20,7 +23,7 @@ class joy_control():
         self.stub = None
         self.cyberdog_ip = "192.168.3.86"  # to be modified 
         self.deadzone = 0.3
-        self.speed = 2.0
+        self.speed = 0.2
 
         """
         GAIT_TRANS     = 0;  EMERGENCY STOP DON't USE
@@ -46,15 +49,34 @@ class joy_control():
         EXPLOR = 14;
         TRACK = 15;
         }
-        """
 
-        self.gait_iter = 8
-        self.gait_len = 12
-        self.gait_key = {"button_4":-1,"button5":1} #TODO modify with joystick L and R buttons
+        """
+        # order
+        self.available_order = {"TURN_AROUND" : 13,
+                                "HI_FIVE"     : 14,
+                                "DANCE"       : 15,
+                                "WELCOME"     : 16,
+                                "TURN_OVER"   : 17,
+                                "SIT"         : 18,
+                                "BOW"         : 19,
+                                "MAX"         : 20,
+                                }
+        # gait
+        self.available_gait = {"GAIT_WALK" :        6,
+                               "GAIT_SLOW_TROT" :   7,
+                               "GAIT_TROT" :        8,
+                               "GAIT_FLYTROT" :     9,
+                               "GAIT_BOUND" :       10,
+                               "GAIT_PRONK" :       11
+                              }
+        self.gait_list = list(self.available_gait.keys())
+        self.gait_iter = 0
+        self.gait_len = len(self.available_gait)
+        self.gait_key = {xbox.LB:-1,xbox.RB:1} 
         self.dog_init = 0
 
         # hidden command  ↑↑↓↓←←→→ no BABA to simplify, [doge] 
-        self.secret_command = [pygame.K_UP]*2 + [pygame.K_DOWN]*2 + [pygame.K_LEFT]*2 + [pygame.K_RIGHT]*2  #TODO modify with joystick hats: hat_0 (0, 0)
+        self.secret_command = [xbox.HU]*2 + [xbox.HD]*2 + [xbox.HL]*2 + [xbox.HR]*2 
         self.sc_iter = 0
         self.unlock_high_level = 0 
         self.mad_dog_mode = 0
@@ -67,8 +89,8 @@ class joy_control():
                 self.unlock_high_level = (self.unlock_high_level + 1) % 2
                 self.sc_iter = 0
                 self.set_cmd_level(self.unlock_high_level )
-        elif key == pygame.K_UP:
-            self.sc_iter = 2 if self.sc_iter==2 else 1 #@ to deal with the combination like ↑↑↑↓↓←←→→
+        elif key == xbox.HU:
+            self.sc_iter = 2 if self.sc_iter==2 else 1 ## to deal with the combination like ↑↑↑↓↓←←→→
         else:
             self.sc_iter = 0 
 
@@ -76,11 +98,10 @@ class joy_control():
         ## user L R button to iterate cyclically through gait list 
         if key in self.gait_key:
             self.gait_iter = (self.gait_iter + self.gait_key[key]) % self.gait_len
-            self.set_gait(self.gait_iter)
+            self.set_gait(self.gait_list[self.gait_iter])
 
     def send_cmd(self, cmd_dict):
-        ## to work on it, still have some problem, some mode cannot reveice twist cmd
-        print_dict(cmd_dict)
+        # print_dict(cmd_dict)
         twist = cyberdog_app_pb2.Twist()
         
         if self.mad_dog_mode:
@@ -98,38 +119,32 @@ class joy_control():
         except:
             pass
 
-        if(cmd_dict["button_7"]):
-            self.stand_up()
-        if(cmd_dict["button_6"]):
-            self.get_down()
-        if(cmd_dict["button_5"]):
-            self.set_gait(gait_id = 7)
-
     def set_gait(self, gait_id = 8):
         request = cyberdog_app_pb2.CheckoutPattern_request()
         request.patternstamped.pattern.gait_pattern = gait_id
         response = self.stub.setPattern(request)
         # print("Execute gait_id " +str(gait_id) +" result:" + str(response.succeed))
-        print("Execute gait_id " +str(gait_id))
+        print("Execute gait_id ", list(self.available_gait.keys())[list(self.available_gait.values()).index(gait_id)])
+        pygame.time.wait(1000)
 
     def set_current_speed(self, speed):
-        self.speed = speed
+        if (speed < 0):
+            self.speed = max(0.2, self.speed + speed)
+        if (speed > 0):
+            self.speed = min(2.0, self.speed + speed)
+        print("set speed to: ", speed, " m/s")
     
     def set_cmd_level(self, level):
         print("secret command "+ ["locked, unlocked"][level])
-        if level:
-            self.set_gait(gait_id=5)
-            self.mad_dog_mode = 1
-        else:
-            self.mad_dog_mode = 0
-            self.trot()
+        self.mad_dog_mode = level
+        [self.trot(), self.set_gait(gait_id=5)][level]
         
-    def set_ai_token(self):
+    def set_ai_token(self, vol = 5):
         tr = cyberdog_app_pb2.TokenPass_Request()
         tr.ask = cyberdog_app_pb2.TokenPass_Request.ASK_SET_VOLUME
-        tr.vol = 5
+        tr.vol = vol
         response = self.stub.sendAiToken(tr)
-        # print(response)
+        print("set volume to: ", vol)
 
     def set_mode(self, mode=0):
         request = cyberdog_app_pb2.CheckoutMode_request()
@@ -138,21 +153,29 @@ class joy_control():
         response = self.stub.setMode(request)
         # print("Execute mode " +str(mode) +" result:" + str(response.succeed))
     
-    def set_param(self, cmd_dict)
+    def set_param(self, cmd_dict):
         param = cyberdog_app_pb2.Parameters()
         param.body_height = cmd_dict["axis_1"] * self.max_speed
         param.gait_height = cmd_dict["axis_3"] * self.max_speed
         result = self.stub.setBodyPara(param)
         # print(result)
 
+    def send_order(self, order_id):
+        request = cyberdog_app_pb2.ExtMonOrder_Request()
+        request.order.id = order_id
+        request.timeput = 10
+        print("send order: ", list(self.available_order.keys())[list(self.available_order.values()).index(order_id)])
+
     def trot(self):
-        self.set_gait(gait_id=8)
+        self.set_gait()
 
     def stand_up(self):
         self.set_mode(mode=cyberdog_app_pb2.CheckoutMode_request.MANUAL)
+        print("Doggo getting up")
 
     def get_down(self):
         self.set_mode(mode=cyberdog_app_pb2.CheckoutMode_request.DEFAULT)
+        print("Doggo going down")
 
     def dog_start(self):
         if not self.dog_init:
@@ -162,31 +185,67 @@ class joy_control():
             self.stand_up()
             self.trot()
             self.dog_init = 1
+            print("doggo started with: ", self.cyberdog_ip + ':50051')
 
     def run(self):
         running = True
         while running:
             self.dog_start()
-            for event in pygame.event.get(): 
-                if event.type == pygame.QUIT: 
-                    running = False 
             joystick_count = pygame.joystick.get_count()
             cmd = {}
             for i in range(joystick_count):
                 joystick = pygame.joystick.Joystick(i)
                 joystick.init()
-                axes = joystick.get_numaxes()
-                for i in range(axes):
-                    axis = joystick.get_axis(i)
-                    cmd.update({"axis_"+str(i): (-axis if abs(axis) > self.deadzone else 0)})
-                buttons = joystick.get_numbuttons()
-                for i in range(buttons):
-                    button = joystick.get_button(i)
-                    cmd.update({"button_"+str(i):button})
-                hats = joystick.get_numhats()
-                for i in range(hats):
-                    hat = joystick.get_hat(i)
-                    cmd.update({"hat_"+str(i):hat})
+                for event in pygame.event.get(): 
+                    if event.type == pygame.QUIT: 
+                        running = False 
+                    if event.type == pygame.JOYBUTTONDOWN:
+                        print("Button Pressed")
+                        if joystick.get_button(xbox.LB):
+                            self.check_gait(xbox.LB)
+
+                        elif joystick.get_button(xbox.RB):
+                            self.check_gait(xbox.RB)
+
+                        elif joystick.get_button(xbox.A):
+                            self.send_order(self.available_order["WELCOME"]) 
+
+                        elif joystick.get_button(xbox.B):
+                            self.send_order(self.available_order["HI_FIVE"]) 
+
+                        elif joystick.get_button(xbox.X):
+                            self.send_order(self.available_order["SIT"]) 
+
+                        elif joystick.get_button(xbox.Y):
+                            self.send_order(self.available_order["BOW"]) 
+
+                        elif joystick.get_button(xbox.LSI):
+                            self.set_current_speed(-0.2)
+                            # self.send_order(self.available_order["DANCE"]) 
+
+                        elif joystick.get_button(xbox.RSI):
+                            self.set_current_speed(0.2)
+                            # self.send_order(self.available_order["TURN_AROUND"]) 
+
+                        elif joystick.get_button(xbox.GB):
+                            self.send_order(self.available_order["MAX"]) 
+
+                        elif joystick.get_button(xbox.SB):
+                            self.stand_up()
+
+                        elif joystick.get_button(xbox.BB):
+                            self.get_down()
+
+                        hats = joystick.get_numhats()
+                        for i in range(hats):
+                            hat = joystick.get_hat(i)
+                            if hat !=[0,0]:
+                                self.check_sc(hat)
+
+                    axes = joystick.get_numaxes()
+                    for i in range(axes):
+                        axis = joystick.get_axis(i)
+                        cmd.update({"axis_"+str(i): (-axis if abs(axis) > self.deadzone else 0)})
             self.send_cmd(cmd)
             self.clock.tick(30)
         pygame.quit()
