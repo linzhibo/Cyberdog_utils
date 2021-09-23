@@ -178,7 +178,8 @@ class joy_control():
     def send_order(self, order_id):
         request = cyberdog_app_pb2.ExtMonOrder_Request()
         request.order.id = order_id
-        request.timeout = 10
+        request.timeout = 50
+        response = self.stub.setExtmonOrder(request)
         print("send order: ", list(self.available_order.keys())[list(self.available_order.values()).index(order_id)])
 
     def trot(self):
