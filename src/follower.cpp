@@ -1,0 +1,176 @@
+#include <cmath>
+#include <vector>
+
+#include <rclcpp/rclcpp.hpp>
+#include <rcutils/logging_macros.h>
+
+#include <geometry_msgs/msg/twist.hpp>
+#include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/msg/image.hpp>
+
+#include "depth_traits.h"
+
+#define ROS_WARN RCUTILS_LOG_WARN
+#define ROS_ERROR RCUTILS_LOG_ERROR
+#define ROS_INFO_THROTTLE(sec, ...) RCUTILS_LOG_INFO_THROTTLE(RCUTILS_STEADY_TIME, sec, __VA_ARGS__)
+
+using std::placeholders::_1;
+
+class RS_Follower : public rclcpp::Node
+{
+public:
+
+  RS_Follower(rclcpp::Node::SharedPtr n) : Node("rs_follower"), min_y_(0.1), max_y_(0.5),
+                        min_x_(-0.3), max_x_(0.3),
+                        max_z_(1.5), goal_z_(0.6),
+                        z_scale_(1.0), x_scale_(5.0), enabled_(true), n_(n)
+  {
+  }
+
+  ~RS_Follower()
+  {
+  }
+
+private:
+  double min_y_; /**< The minimum y position of the points in the box. */
+  double max_y_; /**< The maximum y position of the points in the box. */
+  double min_x_; /**< The minimum x position of the points in the box. */
+  double max_x_; /**< The maximum x position of the points in the box. */
+  double max_z_; /**< The maximum z position of the points in the box. */
+  double goal_z_; /**< The distance away from the robot to hold the centroid */
+  double z_scale_; /**< The scaling factor for translational robot speed */
+  double x_scale_; /**< The scaling factor for rotational robot speed */
+  bool   enabled_; /**< Enable/disable following; just prevents motor commands */
+
+  public: virtual void onInit()
+  {
+    n_->get_parameter_or<double>("min_y", min_y_, 0.1);
+    n_->get_parameter_or<double>("max_y", max_y_, 0.5);
+    n_->get_parameter_or<double>("min_x", min_x_, -0.3);
+    n_->get_parameter_or<double>("max_x", max_x_, 0.3);
+    n_->get_parameter_or<double>("max_z", max_z_, 1.5);
+    n_->get_parameter_or<double>("goal_z", goal_z_, 0.6);
+    n_->get_parameter_or<double>("z_scale", z_scale_, 1.0);
+    n_->get_parameter_or<double>("x_scale", x_scale_, 5.0);
+    n_->get_parameter_or<bool>("enabled", enabled_, true);
+
+    auto qos = rclcpp::QoS(rclcpp::KeepLast(10));
+    cmdpub_ = n_->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", qos);
+    sub_= n_->create_subscription<sensor_msgs::msg::Image>("depth", 10, std::bind(&RS_Follower::imagecb, this, _1));
+  }
+
+  private:
+
+  void imagecb(const sensor_msgs::msg::Image::SharedPtr depth_msg)
+  {
+    if(depth_msg->encoding != sensor_msgs::image_encodings::TYPE_32FC1)
+    {
+      ROS_ERROR("received depth image with unsupported encoding: %s", depth_msg->encoding.c_str());
+      return;
+    }
+
+    // Precompute the sin function for each row and column
+    uint32_t image_width = depth_msg->width;
+    float x_radians_per_pixel = 60.0/57.0/image_width;
+    std::vector<float> sin_pixel_x(image_width);
+    for (uint32_t x = 0; x < image_width; ++x) {
+      sin_pixel_x[x] = sin((x - image_width/ 2.0)  * x_radians_per_pixel);
+    }
+
+    uint32_t image_height = depth_msg->height;
+    float y_radians_per_pixel = 45.0/57.0/image_width;
+    std::vector<float> sin_pixel_y(image_height);
+    for (uint32_t y = 0; y < image_height; ++y) {
+      // Sign opposite x for y up values
+      sin_pixel_y[y] = sin((image_height/ 2.0 - y)  * y_radians_per_pixel);
+    }
+
+    //X,Y,Z of the centroid
+    float x = 0.0;
+    float y = 0.0;
+    float z = 1e6;
+    //Number of points observed
+    unsigned int n = 0;
+
+    //Iterate through all the points in the region and find the average of the position
+    const float* depth_row = reinterpret_cast<const float*>(&depth_msg->data[0]);
+    int row_step = depth_msg->step / sizeof(float);
+    for (int v = 0; v < (int)depth_msg->height; ++v, depth_row += row_step)
+    {
+     for (int u = 0; u < (int)depth_msg->width; ++u)
+     {
+       float depth = depth_image_proc::DepthTraits<float>::toMeters(depth_row[u]);
+       if (!depth_image_proc::DepthTraits<float>::valid(depth) || depth > max_z_) continue;
+       float y_val = sin_pixel_y[v] * depth;
+       float x_val = sin_pixel_x[u] * depth;
+       if ( y_val > min_y_ && y_val < max_y_ &&
+            x_val > min_x_ && x_val < max_x_)
+       {
+         x += x_val;
+         y += y_val;
+         z = std::min(z, depth); //approximate depth as forward.
+         n++;
+       }
+     }
+    }
+
+    auto cmd_vel_msg = std::make_unique<geometry_msgs::msg::Twist>();
+
+    cmd_vel_msg->linear.x = 0.0;
+    cmd_vel_msg->linear.y = 0.0;
+    cmd_vel_msg->linear.z = 0.0;
+
+    cmd_vel_msg->angular.x = 0.0;
+    cmd_vel_msg->angular.y = 0.0;
+    cmd_vel_msg->angular.z = 0.0;
+
+    //If there are points, find the centroid and calculate the command goal.
+    //If there are no points, simply publish a stop goal.
+    if (n>4000)
+    {
+      x /= n;
+      y /= n;
+      if(z > max_z_){
+        ROS_INFO_THROTTLE(1, "Centroid too far away %f, stopping the robot", z);
+        if (enabled_)
+        {
+          cmdpub_->publish(std::move(cmd_vel_msg));
+        }
+        return;
+      }
+
+      ROS_INFO_THROTTLE(1, "Centroid at %f %f %f with %d points", x, y, z, n);
+
+      if (enabled_)
+      {
+        cmd_vel_msg->linear.x = (z - goal_z_) * z_scale_;
+        cmd_vel_msg->angular.z = -x * x_scale_;
+        cmdpub_->publish(std::move(cmd_vel_msg));
+      }
+    }
+    else
+    {
+      ROS_INFO_THROTTLE(1, "Not enough points(%d) detected, stopping the robot", n);
+
+      if (enabled_)
+      {
+        cmdpub_->publish(std::move(cmd_vel_msg));
+      }
+    }
+
+  }
+
+  rclcpp::Node::SharedPtr n_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdpub_;
+};
+
+int main(int argc, char** argv)
+{
+  rclcpp::init(argc, argv);
+  auto n = rclcpp::Node::make_shared("rs_follower");
+  RS_Follower rf(n);
+  rf.onInit();
+  rclcpp::spin(n);
+  return 0;
+}
