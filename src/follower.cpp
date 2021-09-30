@@ -20,11 +20,11 @@ class RS_Follower : public rclcpp::Node
 {
 public:
 
-  RS_Follower(rclcpp::Node::SharedPtr n) : Node("rs_follower"), min_y_(0.1), max_y_(0.5),
-                        min_x_(-0.3), max_x_(0.3),
-                        max_z_(1.5), goal_z_(0.6),
-                        z_scale_(1.0), x_scale_(5.0), enabled_(true), n_(n)
+  RS_Follower() : Node("rs_follower")
   {
+    this->declare_parameter<std::string>("depth_topic", "/camera/depth/image_rect_raw");
+    this->declare_parameter<std::string>("cmd_topic", "/cmd_vel");
+    initialize();
   }
 
   ~RS_Follower()
@@ -32,40 +32,42 @@ public:
   }
 
 private:
-  double min_y_; /**< The minimum y position of the points in the box. */
-  double max_y_; /**< The maximum y position of the points in the box. */
-  double min_x_; /**< The minimum x position of the points in the box. */
-  double max_x_; /**< The maximum x position of the points in the box. */
-  double max_z_; /**< The maximum z position of the points in the box. */
-  double goal_z_; /**< The distance away from the robot to hold the centroid */
-  double z_scale_; /**< The scaling factor for translational robot speed */
-  double x_scale_; /**< The scaling factor for rotational robot speed */
-  bool   enabled_; /**< Enable/disable following; just prevents motor commands */
-
-  public: virtual void onInit()
+  
+  
+  void initialize()
   {
-    n_->get_parameter_or<double>("min_y", min_y_, 0.1);
-    n_->get_parameter_or<double>("max_y", max_y_, 0.5);
-    n_->get_parameter_or<double>("min_x", min_x_, -0.3);
-    n_->get_parameter_or<double>("max_x", max_x_, 0.3);
-    n_->get_parameter_or<double>("max_z", max_z_, 1.5);
-    n_->get_parameter_or<double>("goal_z", goal_z_, 0.6);
-    n_->get_parameter_or<double>("z_scale", z_scale_, 1.0);
-    n_->get_parameter_or<double>("x_scale", x_scale_, 5.0);
-    n_->get_parameter_or<bool>("enabled", enabled_, true);
+    this->get_parameter("depth_topic", depth_topic_);
+    this->get_parameter("cmd_topic", cmd_topic_);
 
-    auto qos = rclcpp::QoS(rclcpp::KeepLast(10));
-    cmdpub_ = n_->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", qos);
-    sub_= n_->create_subscription<sensor_msgs::msg::Image>("depth", 10, std::bind(&RS_Follower::imagecb, this, _1));
+    auto qos_cmd = rclcpp::QoS(rclcpp::KeepLast(10));
+    RCLCPP_INFO(this->get_logger(), "Publishing to topic '%s'", cmd_topic_.c_str());
+    cmdpub_ = create_publisher<geometry_msgs::msg::Twist>(cmd_topic_, qos_cmd);
+
+    size_t depth_ = rmw_qos_profile_default.depth;
+    rmw_qos_history_policy_t history_policy_ = rmw_qos_profile_default.history;
+    rmw_qos_reliability_policy_t reliability_policy_ = rmw_qos_profile_default.reliability;
+
+    auto qos = rclcpp::QoS(
+      rclcpp::QoSInitialization(
+        history_policy_,
+        depth_
+    ));
+
+    qos.reliability(reliability_policy_);
+    auto callback = [this](const sensor_msgs::msg::Image::SharedPtr msg)
+      {
+        process_image(msg);
+      };
+
+    RCLCPP_INFO(this->get_logger(), "Subscribing to topic '%s'", depth_topic_.c_str());
+    sub_ = create_subscription<sensor_msgs::msg::Image>(depth_topic_, qos, callback);
   }
 
-  private:
-
-  void imagecb(const sensor_msgs::msg::Image::SharedPtr depth_msg)
+  void process_image(const sensor_msgs::msg::Image::SharedPtr depth_msg)
   {
-    if(depth_msg->encoding != sensor_msgs::image_encodings::TYPE_32FC1)
+    if(depth_msg->encoding != sensor_msgs::image_encodings::TYPE_16UC1)
     {
-      ROS_ERROR("received depth image with unsupported encoding: %s", depth_msg->encoding.c_str());
+      std::cout<<"received depth image with unsupported encoding: " << depth_msg->encoding.c_str() << std::endl;
       return;
     }
 
@@ -160,17 +162,28 @@ private:
 
   }
 
-  rclcpp::Node::SharedPtr n_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdpub_;
+
+  size_t depth_ = rmw_qos_profile_default.depth;
+  rmw_qos_reliability_policy_t reliability_policy_ = rmw_qos_profile_default.reliability;
+  rmw_qos_history_policy_t history_policy_ = rmw_qos_profile_default.history;
+  double min_y_ = 0.1; /**< The minimum y position of the points in the box. */
+  double max_y_ = 0.5; /**< The maximum y position of the points in the box. */
+  double min_x_ = -0.3; /**< The minimum x position of the points in the box. */
+  double max_x_ = 0.3; /**< The maximum x position of the points in the box. */
+  double max_z_ = 1.5; /**< The maximum z position of the points in the box. */
+  double goal_z_ = 0.6; /**< The distance away from the robot to hold the centroid */
+  double z_scale_ = 1.0; /**< The scaling factor for translational robot speed */
+  double x_scale_ = 5.0; /**< The scaling factor for rotational robot speed */
+  bool   enabled_ = true; /**< Enable/disable following; just prevents motor commands */
+  std::string depth_topic_, cmd_topic_;
 };
 
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  auto n = rclcpp::Node::make_shared("rs_follower");
-  RS_Follower rf(n);
-  rf.onInit();
-  rclcpp::spin(n);
+  rclcpp::spin(std::make_shared<RS_Follower>());
+  rclcpp::shutdown();
   return 0;
 }

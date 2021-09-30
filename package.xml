@@ -3,7 +3,7 @@
   <name>cyberdog_utils</name>
   <version>0.5.0</version>
   <description>A simple follower using centroid in depth images.</description>
-
+  <maintainer email="blabla@bla.com">bla</maintainer>
   <license>Apache License 2.0</license>
 
 

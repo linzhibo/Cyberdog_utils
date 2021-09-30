@@ -6,11 +6,14 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='cyberdog_utils',
-            node_executable='rs_follower',
+            node_executable='rs_follower', #foxy change node_executable to executable, same for node_name
             node_name='rs_follower',
-            remappings=[
-                ('/cmd_vel', '/mi123456/cmd_out'),
-                ('/depth', '/mi123456/camera/depth'),
+            output="screen",
+            emulate_tty=True,
+            parameters=[
+                {"depth_topic": "/camera/depth/image_rect_raw",
+                 "cmd_topic":"/mi123456/cmd_vel"
+                }
             ]
         )
     ])
