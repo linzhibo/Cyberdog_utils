@@ -24,6 +24,16 @@ public:
   {
     this->declare_parameter<std::string>("depth_topic", "/camera/depth/image_rect_raw");
     this->declare_parameter<std::string>("cmd_topic", "/cmd_vel");
+    this->declare_parameter<double>("min_y", 0.1);
+    this->declare_parameter<double>("max_y", 0.5);
+    this->declare_parameter<double>("min_x", -0.3);
+    this->declare_parameter<double>("max_x", 0.3);
+    this->declare_parameter<double>("max_z", 1.5);
+    this->declare_parameter<double>("goal_z", 0.6);
+    this->declare_parameter<double>("z_scale", 1.0);
+    this->declare_parameter<double>("x_scale", 5.0);
+    this->declare_parameter<bool>("enabled", true);
+
     initialize();
   }
 
@@ -38,6 +48,15 @@ private:
   {
     this->get_parameter("depth_topic", depth_topic_);
     this->get_parameter("cmd_topic", cmd_topic_);
+    this->get_parameter("min_y", min_y_);
+    this->get_parameter("max_y", max_y_);
+    this->get_parameter("min_x", min_x_);
+    this->get_parameter("max_x", max_x_);
+    this->get_parameter("max_z", max_z_);
+    this->get_parameter("goal_z", goal_z_);
+    this->get_parameter("z_scale", z_scale_);
+    this->get_parameter("x_scale", x_scale_);
+    this->get_parameter("enabled", enabled_);
 
     auto qos_cmd = rclcpp::QoS(rclcpp::KeepLast(10));
     RCLCPP_INFO(this->get_logger(), "Publishing to topic '%s'", cmd_topic_.c_str());
