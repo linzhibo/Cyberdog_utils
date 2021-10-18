@@ -8,6 +8,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
+#include "motion_msgs/msg/se3_velocity_cmd.hpp"
 #include "depth_traits.h"
 
 #define ROS_WARN RCUTILS_LOG_WARN
@@ -58,9 +59,11 @@ private:
     this->get_parameter("x_scale", x_scale_);
     this->get_parameter("enabled", enabled_);
 
-    auto qos_cmd = rclcpp::QoS(rclcpp::KeepLast(10));
+    // auto qos_cmd = rclcpp::QoS(rclcpp::KeepLast(10));
     RCLCPP_INFO(this->get_logger(), "Publishing to topic '%s'", cmd_topic_.c_str());
-    cmdpub_ = create_publisher<geometry_msgs::msg::Twist>(cmd_topic_, qos_cmd);
+    // cmdpub_ = create_publisher<geometry_msgs::msg::Twist>(cmd_topic_, qos_cmd);
+
+    cmdpub_ = this->create_publisher<motion_msgs::msg::SE3VelocityCMD>(cmd_topic_, rclcpp::SystemDefaultsQoS());
 
     size_t depth_ = rmw_qos_profile_default.depth;
     rmw_qos_history_policy_t history_policy_ = rmw_qos_profile_default.history;
@@ -79,11 +82,13 @@ private:
       };
 
     RCLCPP_INFO(this->get_logger(), "Subscribing to topic '%s'", depth_topic_.c_str());
-    sub_ = create_subscription<sensor_msgs::msg::Image>(depth_topic_, qos, callback);
+    sub_ = create_subscription<sensor_msgs::msg::Image>(depth_topic_, rclcpp::SensorDataQoS(), callback);
+    // imageDepthSub_.subscribe(&node, "depth/image", hints.getTransport(), rmw_qos_profile_sensor_data);
   }
 
   void process_image(const sensor_msgs::msg::Image::SharedPtr depth_msg)
   {
+    std::cout<<"got depth image: " << std::endl;
     if(depth_msg->encoding != sensor_msgs::image_encodings::TYPE_16UC1)
     {
       std::cout<<"received depth image with unsupported encoding: " << depth_msg->encoding.c_str() << std::endl;
@@ -112,6 +117,7 @@ private:
     float z = 1e6;
     //Number of points observed
     unsigned int n = 0;
+    float max_depth = 0;
 
     //Iterate through all the points in the region and find the average of the position
     const float* depth_row = reinterpret_cast<const float*>(&depth_msg->data[0]);
@@ -121,6 +127,10 @@ private:
      for (int u = 0; u < (int)depth_msg->width; ++u)
      {
        float depth = depth_image_proc::DepthTraits<float>::toMeters(depth_row[u]);
+       if(depth > max_depth)
+        {
+          max_depth = depth;
+        }
        if (!depth_image_proc::DepthTraits<float>::valid(depth) || depth > max_z_) continue;
        float y_val = sin_pixel_y[v] * depth;
        float x_val = sin_pixel_x[u] * depth;
@@ -130,20 +140,34 @@ private:
          x += x_val;
          y += y_val;
          z = std::min(z, depth); //approximate depth as forward.
+         
          n++;
        }
      }
     }
+    std::cout<< "max depth: "<< max_depth << std::endl;
 
-    auto cmd_vel_msg = std::make_unique<geometry_msgs::msg::Twist>();
+    // auto cmd_vel_msg = std::make_unique<geometry_msgs::msg::Twist>();
+    motion_msgs::msg::SE3VelocityCMD cmd_vel_msg;
 
-    cmd_vel_msg->linear.x = 0.0;
-    cmd_vel_msg->linear.y = 0.0;
-    cmd_vel_msg->linear.z = 0.0;
+    cmd_vel_msg.sourceid = motion_msgs::msg::SE3VelocityCMD::REMOTEC;
+    // cmd_vel_msg.velocity.frameid.id = motion_msgs::msg::Frameid::BODY_FRAME;
+    // cmd_vel_msg.velocity.timestamp = decision_->get_clock()->now();
+    cmd_vel_msg.velocity.linear_x = 0;
+    cmd_vel_msg.velocity.linear_y = 0;
+    cmd_vel_msg.velocity.linear_z = 0;
 
-    cmd_vel_msg->angular.x = 0.0;
-    cmd_vel_msg->angular.y = 0.0;
-    cmd_vel_msg->angular.z = 0.0;
+    cmd_vel_msg.velocity.angular_x = 0;
+    cmd_vel_msg.velocity.angular_y = 0;
+    cmd_vel_msg.velocity.angular_z = 0;
+
+    // cmd_vel_msg->linear.x = 0.0;
+    // cmd_vel_msg->linear.y = 0.0;
+    // cmd_vel_msg->linear.z = 0.0;
+
+    // cmd_vel_msg->angular.x = 0.0;
+    // cmd_vel_msg->angular.y = 0.0;
+    // cmd_vel_msg->angular.z = 0.0;
 
     //If there are points, find the centroid and calculate the command goal.
     //If there are no points, simply publish a stop goal.
@@ -155,7 +179,7 @@ private:
         ROS_INFO_THROTTLE(1, "Centroid too far away %f, stopping the robot", z);
         if (enabled_)
         {
-          cmdpub_->publish(std::move(cmd_vel_msg));
+          // cmdpub_->publish(std::move(cmd_vel_msg));
         }
         return;
       }
@@ -164,9 +188,12 @@ private:
 
       if (enabled_)
       {
-        cmd_vel_msg->linear.x = (z - goal_z_) * z_scale_;
-        cmd_vel_msg->angular.z = -x * x_scale_;
-        cmdpub_->publish(std::move(cmd_vel_msg));
+        // cmd_vel_msg->linear.x = (z - goal_z_) * z_scale_;
+        // cmd_vel_msg->angular.z = -x * x_scale_;
+        // cmdpub_->publish(std::move(cmd_vel_msg));
+        cmd_vel_msg.velocity.linear_x = (z - goal_z_) * z_scale_;
+        cmd_vel_msg.velocity.angular_z = -x * x_scale_;
+        cmdpub_->publish(cmd_vel_msg);
       }
     }
     else
@@ -175,14 +202,15 @@ private:
 
       if (enabled_)
       {
-        cmdpub_->publish(std::move(cmd_vel_msg));
+        // cmdpub_->publish(std::move(cmd_vel_msg));
+        cmdpub_->publish(cmd_vel_msg);
       }
     }
 
   }
 
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmdpub_;
+  rclcpp::Publisher<motion_msgs::msg::SE3VelocityCMD>::SharedPtr cmdpub_;
 
   size_t depth_ = rmw_qos_profile_default.depth;
   rmw_qos_reliability_policy_t reliability_policy_ = rmw_qos_profile_default.reliability;

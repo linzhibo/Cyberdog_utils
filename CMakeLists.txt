@@ -14,11 +14,13 @@ find_package(ament_cmake REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(motion_msgs REQUIRED)
 
 include_directories(include)
 
 add_executable(rs_follower src/follower.cpp)
 ament_target_dependencies(rs_follower
+  "motion_msgs"
   "geometry_msgs"
   "rclcpp"
   "sensor_msgs")
