@@ -76,6 +76,10 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
 
     float constant_x = 1.0 / cam_model_.fx();
     float constant_y = 1.0 / cam_model_.fy();
+    float center_x = cam_model_.cx();
+    float center_y = cam_model_.cy();
+    float u_mean = 0;
+    float v_mean = 0;
 
     const uint16_t* depth_row = reinterpret_cast<const uint16_t*>(&image->data[0]);
     int row_step = image->step / sizeof(uint16_t);
@@ -91,8 +95,8 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
                 max_depth = depth;
             }
             if (!depth_image_proc::DepthTraits<float>::valid(depth) || depth > max_z_) continue;
-            float y_val = constant_y * v * depth;
-            float x_val = constant_x * u * depth;
+            float y_val = constant_y * (v - center_y) * depth;
+            float x_val = constant_x * (u - center_x) * depth;
             // std::cout<< y_val << " " << x_val << std::endl;
             if ( y_val > min_y_ && y_val < max_y_ && x_val > min_x_ && x_val < max_x_)
             {
@@ -100,12 +104,16 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
                 y += y_val;
                 z = std::min(z, depth); //approximate depth as forward.
                 n++;
+                u_mean += (u - center_x);
+                v_mean += (v - center_y);
             }
         }
     }
 
     motion_msgs::msg::SE3VelocityCMD cmd_vel_msg;
-    cmd_vel_msg.sourceid = motion_msgs::msg::SE3VelocityCMD::REMOTEC;
+    cmd_vel_msg.velocity.timestamp = now();
+    cmd_vel_msg.sourceid = 2;
+    cmd_vel_msg.velocity.frameid.id = 1;
     cmd_vel_msg.velocity.linear_x = 0;
     cmd_vel_msg.velocity.linear_y = 0;
     cmd_vel_msg.velocity.linear_z = 0;
@@ -118,6 +126,10 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
     {
         x /= n;
         y /= n;
+
+        u_mean/=n;
+        v_mean/=n;
+
         if(z > max_z_)
         {
             ROS_INFO_THROTTLE(1, "Centroid too far away %f, stopping the robot", z);
@@ -129,6 +141,7 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
         }
 
         ROS_INFO_THROTTLE(1, "Centroid at %f %f %f with %d points", x, y, z, n);
+        // ROS_INFO_THROTTLE(1, "Centroid at %f %f  with %d points", u_mean, v_mean,  n);
 
         if (enabled_)
         {
