@@ -19,10 +19,10 @@ def generate_launch_description():
                     "max_y": -0.1,
                     "min_x": -0.3,
                     "max_x": 0.3,
-                    "max_z": 1.5,
+                    "max_z": 2.0,
                     "goal_z": 0.6,
-                    "z_scale": 1.0,
-                    "x_scale": 5.0,
+                    "z_scale": 2.0,
+                    "x_scale": 2.0,
                     "enabled": True,
                 }
             ]
