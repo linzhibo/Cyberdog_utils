@@ -57,9 +57,22 @@ python3 joy.py
 ```
 It should work with all available joyticks listed in /dev/input/js* .
 
-# TODO
+## Realsense depth image centroid follower
+Not perfect for the moment but can be tested for fun:
+1. create a ros2 workspace on cyberdog, clone this repo
+2. In launch/rs_follow.py modify the parameters (put your dog's mi number)
+3. Build this package, you might need to source ros2 environment first
+4. Bring up you cyberdog: connect it to your phone, (ideally use your phone's hotspot if you want to bring it outside) switch to outdoor mode, stand up and get down, this will "active" the dog, because on activation, it will disable realsense camera on outdoor mode.
+5. Enable realsense camera
+```
+ros2 service call /mi999999(put your dog number)/camera/enable std_srvs/SetBool "{data : True}"
+```
+6. stand up again and the dog will follow the centroid point in front of the camera.
 
-- [x] put the wav dir path on the jetson nx out
-- [x] Disable SLAM related programs at system start(rtab msckf), courtesy to [homalozoa](https://github.com/homalozoa), see [solution](https://github.com/linzhibo/Cyberdog_utils/issues/1#issue-996182833).
-- [ ] Disable audio and talker at system start
-- [ ] Write joystock teleop with switch joycons, ref: https://github.com/ros2/teleop_twist_joy
+# TODO
+- [ ] parameterize instead of changing values in launch file
+- [ ] add service call to enable realsense camera instead of command line
+- [ ] add service call to enable follower
+- [ ] add param to enable follower with a gait number
+- [ ] automate mi serial detection in launch file, ref athena_common getNamepace()
+- [ ] add script to launch at system start
