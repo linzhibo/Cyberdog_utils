@@ -59,10 +59,10 @@ It should work with all available joyticks listed in /dev/input/js* .
 
 ## Realsense depth image centroid follower
 Not perfect for the moment but can be tested for fun:
-1. create a ros2 workspace on cyberdog, clone this repo
+1. Create a ros2 workspace on cyberdog, clone this repo
 2. In launch/rs_follow.py modify the parameters (put your dog's mi number)
 3. Build this package, you might need to source ros2 environment first
-4. Bring up you cyberdog: connect it to your phone, (ideally use your phone's hotspot if you want to bring it outside) switch to outdoor mode, stand up and get down, this will "active" the dog, because on activation, it will disable realsense camera on outdoor mode.
+4. Bring up your cyberdog: connect it to your phone, (ideally use your phone's hotspot if you want to bring it outside) switch to outdoor mode, stand up and get down, this will "active" the dog, because on activation, it will disable realsense camera on outdoor mode.
 5. Enable realsense camera
 ```
 ros2 service call /mi999999(put your dog number)/camera/enable std_srvs/SetBool "{data : True}"
