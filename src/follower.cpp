@@ -7,6 +7,7 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
 this->declare_parameter<std::string>("depth_topic", "/camera/depth/image_rect_raw");
 this->declare_parameter<std::string>("depth_topic_cam_info", "/camera/depth/camera_info");
 this->declare_parameter<std::string>("cmd_topic", "/cmd_vel");
+this->declare_parameter<std::string>("namespace", "namespace");
 this->declare_parameter<double>("min_y", 0.1);
 this->declare_parameter<double>("max_y", 0.5);
 this->declare_parameter<double>("min_x", -0.3);
@@ -16,10 +17,13 @@ this->declare_parameter<double>("goal_z", 0.6);
 this->declare_parameter<double>("z_scale", 1.0);
 this->declare_parameter<double>("x_scale", 5.0);
 this->declare_parameter<bool>("enabled", true);
+this->declare_parameter<int>("pcl_number", 4000);
+
 
 this->get_parameter("depth_topic", depth_topic_);
 this->get_parameter("depth_topic_cam_info", depth_topic_cam_info_);
 this->get_parameter("cmd_topic", cmd_topic_);
+this->get_parameter("namespace", namespace_);
 this->get_parameter("min_y", min_y_);
 this->get_parameter("max_y", max_y_);
 this->get_parameter("min_x", min_x_);
@@ -29,6 +33,7 @@ this->get_parameter("goal_z", goal_z_);
 this->get_parameter("z_scale", z_scale_);
 this->get_parameter("x_scale", x_scale_);
 this->get_parameter("enabled", enabled_);
+this->get_parameter("pcl_number", thresh_pcl_number_);
 
 RCLCPP_INFO(this->get_logger(), "Publishing to topic '%s'", cmd_topic_.c_str());
 RCLCPP_INFO(this->get_logger(), "Subscribing to topic '%s', '%s'", depth_topic_.c_str(), depth_topic_cam_info_.c_str());
@@ -43,10 +48,30 @@ cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(depth_topic_ca
                                                                   std::bind(&DepthFollower::infoCb, this,std::placeholders::_1));
 
 cmdpub_ = create_publisher<motion_msgs::msg::SE3VelocityCMD>(cmd_topic_, qos);
+
+std::string service_name = namespace_ + "/camera/enable";
+camera_service_call(service_name, true);
 }
 
 DepthFollower::~DepthFollower()
 {
+}
+
+void DepthFollower::camera_service_call(std::string service_name, bool process)
+{
+    auto client = this->create_client<std_srvs::srv::SetBool>(service_name);
+    auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
+    request->data = process;
+    auto result = client->async_send_request(request);
+    if (!result->success) 
+    {
+        RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
+    } 
+    else 
+    {
+        RCLCPP_INFO(this->get_logger(), service_name + " service call success");
+        ok = true;
+    }
 }
 
 void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
@@ -122,7 +147,7 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
     cmd_vel_msg.velocity.angular_y = 0;
     cmd_vel_msg.velocity.angular_z = 0;
 
-    if (n>4000)
+    if (n>thresh_pcl_number_)
     {
         x /= n;
         y /= n;

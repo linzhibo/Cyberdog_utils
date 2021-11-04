@@ -71,8 +71,8 @@ ros2 service call /mi999999(put your dog number)/camera/enable std_srvs/SetBool 
 
 # TODO
 - [ ] parameterize instead of changing values in launch file
-- [ ] add service call to enable realsense camera instead of command line
+- [x] add service call to enable realsense camera instead of command line
 - [ ] add service call to enable follower
 - [ ] add param to enable follower with a gait number
-- [ ] automate mi serial detection in launch file, ref athena_common getNamepace()
+- [x] automate mi serial detection in launch file, ref athena_common getNamepace()
 - [ ] add script to launch at system start
