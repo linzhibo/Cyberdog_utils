@@ -16,6 +16,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <image_geometry/pinhole_camera_model.h>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include "motion_msgs/msg/se3_velocity_cmd.hpp"
 #include "depth_traits.h"
@@ -33,7 +34,7 @@ private:
 
     void depthCb(const sensor_msgs::msg::Image::SharedPtr image);
     void infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info);
-    void camera_service_call(std::string service_name, bool process)
+    void camera_service_call(std::string service_name, bool process);
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
@@ -48,7 +49,8 @@ private:
     double z_scale_ = 1.0; /**< The scaling factor for translational robot speed */
     double x_scale_ = 5.0; /**< The scaling factor for rotational robot speed */
     bool   enabled_ = true; /**< Enable/disable following; just prevents motor commands */
-    int    thresh_pcl_number_ = 4000; /**< Threshold for minimum available pointcloud number*/
+    uint    thresh_pcl_number_ = 4000; /**< Threshold for minimum available pointcloud number*/
     std::string depth_topic_, cmd_topic_, depth_topic_cam_info_, namespace_;
+    bool camera_enabled_;
 };
 #endif

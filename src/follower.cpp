@@ -63,14 +63,15 @@ void DepthFollower::camera_service_call(std::string service_name, bool process)
     auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
     request->data = process;
     auto result = client->async_send_request(request);
-    if (!result->success) 
+    if (!result.get().get()->success) 
     {
         RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
+        camera_enabled_ = false;
     } 
     else 
     {
         RCLCPP_INFO(this->get_logger(), service_name + " service call success");
-        ok = true;
+        camera_enabled_ = true;
     }
 }
 
