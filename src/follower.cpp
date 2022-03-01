@@ -50,9 +50,7 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     param_sub_ = create_subscription<motion_msgs::msg::Parameters>(dogs_namespace_+"para_change", qos, std::bind(&DepthFollower::paramCb, this,std::placeholders::_1));
     check_gait_sub_ = create_subscription<motion_msgs::action::ChangeGait_FeedbackMessage>(dogs_namespace_+"checkout_gait/_action/feedback", qos, std::bind(&DepthFollower::checkGaitFbCb, this,std::placeholders::_1));
     cmdpub_ = create_publisher<motion_msgs::msg::SE3VelocityCMD>(dogs_namespace_+"body_cmd", qos);
-
-    std::string service_name = namespace_ + "/camera/enable";
-    camera_service_call(service_name, true);
+    camera_service_call(dogs_namespace_ + "camera/enable", true);
 }
 
 DepthFollower::~DepthFollower()
