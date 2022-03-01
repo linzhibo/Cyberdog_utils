@@ -19,6 +19,9 @@
 #include <std_srvs/srv/set_bool.hpp>
 
 #include "motion_msgs/msg/se3_velocity_cmd.hpp"
+#include "motion_msgs/msg/parameters.hpp"
+#include "motion_msgs/action/change_gait.hpp"
+#include "motion_msgs/msg/gait.hpp"
 #include "depth_traits.h"
 
 class DepthFollower : public rclcpp::Node
@@ -34,10 +37,15 @@ private:
 
     void depthCb(const sensor_msgs::msg::Image::SharedPtr image);
     void infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info);
+    void paramCb(const motion_msgs::msg::Parameters::SharedPtr param);
     void camera_service_call(std::string service_name, bool process);
+    void checkGaitFbCb(const motion_msgs::action::ChangeGait_FeedbackMessage::SharedPtr msg);
+    void discover_dogs_ns();
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
+    rclcpp::Subscription<motion_msgs::msg::Parameters>::SharedPtr param_sub_;
+    rclcpp::Subscription<motion_msgs::action::ChangeGait_FeedbackMessage>::SharedPtr check_gait_sub_;
     rclcpp::Publisher<motion_msgs::msg::SE3VelocityCMD>::SharedPtr cmdpub_;
 
     double min_y_ = 0.1; /**< The minimum y position of the points in the box. */
@@ -52,5 +60,8 @@ private:
     uint    thresh_pcl_number_ = 4000; /**< Threshold for minimum available pointcloud number*/
     std::string depth_topic_, cmd_topic_, depth_topic_cam_info_, namespace_;
     bool camera_enabled_;
+    double body_height_ = 0.0;
+    int current_gait_ = 0;
+    std::string dogs_namespace_ = "/mi123456789/";
 };
 #endif
