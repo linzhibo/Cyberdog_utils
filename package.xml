@@ -1,16 +1,19 @@
 <?xml version="1.0"?>
-<package format="2">
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
   <name>cyberdog_utils</name>
-  <version>0.5.0</version>
-  <description>A simple follower using centroid in depth images.</description>
+  <version>0.6.0</version>
+  <description>A collection of cyberdog utilities.</description>
   <maintainer email="blabla@bla.com">bla</maintainer>
   <license>Apache License 2.0</license>
 
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
 
   <depend>geometry_msgs</depend>
-  <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>image_geometry</depend>
   <depend>motion_msgs</depend>

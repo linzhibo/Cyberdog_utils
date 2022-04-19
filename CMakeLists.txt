@@ -18,6 +18,9 @@ find_package(image_geometry REQUIRED)
 find_package(motion_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
+find_package(ament_cmake_python REQUIRED)
+find_package(rclpy REQUIRED)
+
 include_directories(include)
 
 add_executable(rs_follower src/follower.cpp)
@@ -35,6 +38,10 @@ install(TARGETS rs_follower
 install(DIRECTORY launch
         DESTINATION share/${PROJECT_NAME})
 
-        
+ament_python_install_package(${PROJECT_NAME})
+install(PROGRAMS
+  scripts/text_to_sound.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
