@@ -80,12 +80,12 @@ void DepthFollower::discover_dogs_ns()
 
 void DepthFollower::checkGaitFbCb(const motion_msgs::action::ChangeGait_FeedbackMessage::SharedPtr msg)
 {
-    std::cout<< msg->feedback.current_checking.gait<<std::endl;
+    std::cout<< "checkGaitFbCb: " <<msg->feedback.current_checking.gait<<std::endl;
     current_gait_ = msg->feedback.current_checking.gait;
 }
 void DepthFollower::paramCb(const motion_msgs::msg::Parameters::SharedPtr param)
 {
-    std::cout<< param->body_height<<std::endl;
+    std::cout<< "paramCb: " << param->body_height<<std::endl;
     body_height_ = param->body_height;
 }
 
@@ -95,16 +95,27 @@ void DepthFollower::camera_service_call(std::string service_name, bool process)
     auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
     request->data = process;
     auto result = client->async_send_request(request);
-    if (!result.get().get()->success) 
-    {
-        RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
-        camera_enabled_ = false;
-    } 
-    else 
-    {
-        RCLCPP_INFO(this->get_logger(), service_name + " service call success");
-        camera_enabled_ = true;
-    }
+    camera_enabled_ = true;
+    // if (rclcpp::spin_until_future_complete(this, result) ==rclcpp::FutureReturnCode::SUCCESS)
+    // {
+    //     RCLCPP_INFO(this->get_logger(), service_name + " service call success");
+    //     camera_enabled_ = true;
+    // } 
+    // else 
+    // {
+    //     RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
+    //     camera_enabled_ = false;
+    // }
+    // if (!result.get()->success) 
+    // {
+    //     RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
+    //     camera_enabled_ = false;
+    // } 
+    // else 
+    // {
+    //     RCLCPP_INFO(this->get_logger(), service_name + " service call success");
+    //     camera_enabled_ = true;
+    // }
 }
 
 void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
