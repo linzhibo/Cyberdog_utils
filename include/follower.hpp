@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <vector>
+#include <queue>
 
 #include <rclcpp/rclcpp.hpp>
 #include <rcutils/logging_macros.h>
@@ -34,6 +35,9 @@ public:
 private:
     sensor_msgs::msg::CameraInfo::SharedPtr cam_info_;
     image_geometry::PinholeCameraModel cam_model_;
+    sensor_msgs::msg::Image::SharedPtr depth_image_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    std::queue<bool> camera_status_;
 
     void depthCb(const sensor_msgs::msg::Image::SharedPtr image);
     void infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info);
@@ -41,6 +45,7 @@ private:
     void camera_service_call(std::string service_name, bool process);
     void checkGaitFbCb(const motion_msgs::action::ChangeGait_FeedbackMessage::SharedPtr msg);
     void discover_dogs_ns();
+    void run();
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
@@ -59,9 +64,10 @@ private:
     bool   enabled_ = true; /**< Enable/disable following; just prevents motor commands */
     uint    thresh_pcl_number_ = 4000; /**< Threshold for minimum available pointcloud number*/
     std::string depth_topic_, cmd_topic_, depth_topic_cam_info_, namespace_;
-    bool camera_enabled_;
+    bool camera_enabled_ = false;
     double body_height_ = 0.0;
     int current_gait_ = 0;
     std::string dogs_namespace_ = "/mi123456789/";
+    bool camera_info_inited_ = false;
 };
 #endif

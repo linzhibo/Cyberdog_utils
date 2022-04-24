@@ -36,6 +36,9 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     this->get_parameter("enabled", enabled_);
     this->get_parameter("pcl_number", thresh_pcl_number_);
 
+    camera_status_.push(false);
+    camera_status_.push(false);
+
     RCLCPP_INFO(this->get_logger(), "Publishing to topic '%s'", cmd_topic_.c_str());
     RCLCPP_INFO(this->get_logger(), "Subscribing to topic '%s', '%s'", depth_topic_.c_str(), depth_topic_cam_info_.c_str());
 
@@ -47,10 +50,11 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(dogs_namespace_+"camera/depth/camera_info", 
                                                                     qos,
                                                                     std::bind(&DepthFollower::infoCb, this,std::placeholders::_1));
-    param_sub_ = create_subscription<motion_msgs::msg::Parameters>(dogs_namespace_+"para_change", qos, std::bind(&DepthFollower::paramCb, this,std::placeholders::_1));
+    param_sub_ = create_subscription<motion_msgs::msg::Parameters>(dogs_namespace_+"para_change", rclcpp::SensorDataQoS(), std::bind(&DepthFollower::paramCb, this,std::placeholders::_1));
     check_gait_sub_ = create_subscription<motion_msgs::action::ChangeGait_FeedbackMessage>(dogs_namespace_+"checkout_gait/_action/feedback", qos, std::bind(&DepthFollower::checkGaitFbCb, this,std::placeholders::_1));
     cmdpub_ = create_publisher<motion_msgs::msg::SE3VelocityCMD>(dogs_namespace_+"body_cmd", qos);
-    camera_service_call(dogs_namespace_ + "camera/enable", true);
+    // camera_service_call(dogs_namespace_ + "camera/enable", true);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&DepthFollower::run, this));
 }
 
 DepthFollower::~DepthFollower()
@@ -59,28 +63,28 @@ DepthFollower::~DepthFollower()
 
 void DepthFollower::discover_dogs_ns()
 {
-  std::string allowed_topic = "motion_msgs/msg/SE3VelocityCMD";
-  auto topics_and_types = this->get_topic_names_and_types();
-  for (auto it : topics_and_types)
-  {
-    for (auto type: it.second)
+    std::string allowed_topic = "motion_msgs/msg/SE3VelocityCMD";
+    auto topics_and_types = this->get_topic_names_and_types();
+    for (auto it : topics_and_types)
     {
-      if (type == allowed_topic)
-      {
-          std::string topic_name = it.first;
-          topic_name = topic_name.erase(0,1);
-          dogs_namespace_ = '/' + topic_name.substr(0, topic_name.find('/')+1);
-          std::cout<<"Found mi dog's namespace: "<< dogs_namespace_ << std::endl;
-          return;
-      }
+        for (auto type: it.second)
+        {
+            if (type == allowed_topic)
+            {
+                std::string topic_name = it.first;
+                topic_name = topic_name.erase(0,1);
+                dogs_namespace_ = '/' + topic_name.substr(0, topic_name.find('/')+1);
+                std::cout<<"Found mi dog's namespace: "<< dogs_namespace_ << std::endl;
+                return;
+            }
+        }
     }
-  }
-  std::cout<<"Did nod found mi dog's namespace, default: "<< dogs_namespace_ << std::endl;
+    std::cout<<"Did nod found mi dog's namespace, default: "<< dogs_namespace_ << std::endl;
 }
 
 void DepthFollower::checkGaitFbCb(const motion_msgs::action::ChangeGait_FeedbackMessage::SharedPtr msg)
 {
-    std::cout<< "checkGaitFbCb: " <<msg->feedback.current_checking.gait<<std::endl;
+    std::cout<< "checkGaitFbCb: " <<(int)msg->feedback.current_checking.gait<<std::endl;
     current_gait_ = msg->feedback.current_checking.gait;
 }
 void DepthFollower::paramCb(const motion_msgs::msg::Parameters::SharedPtr param)
@@ -94,46 +98,86 @@ void DepthFollower::camera_service_call(std::string service_name, bool process)
     auto client = this->create_client<std_srvs::srv::SetBool>(service_name);
     auto request = std::make_shared<std_srvs::srv::SetBool::Request>();
     request->data = process;
+
+    if (!client->wait_for_service(std::chrono::seconds(1))) 
+    {
+        if (!rclcpp::ok()) 
+        {
+            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "service not available, waiting again...");
+        camera_enabled_ = false;
+    }
+
     auto result = client->async_send_request(request);
-    camera_enabled_ = true;
-    // if (rclcpp::spin_until_future_complete(this, result) ==rclcpp::FutureReturnCode::SUCCESS)
-    // {
-    //     RCLCPP_INFO(this->get_logger(), service_name + " service call success");
-    //     camera_enabled_ = true;
-    // } 
-    // else 
-    // {
-    //     RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
-    //     camera_enabled_ = false;
-    // }
-    // if (!result.get()->success) 
-    // {
-    //     RCLCPP_ERROR(this->get_logger(), service_name + " service call failed");
-    //     camera_enabled_ = false;
-    // } 
-    // else 
-    // {
-    //     RCLCPP_INFO(this->get_logger(), service_name + " service call success");
-    //     camera_enabled_ = true;
-    // }
+    camera_enabled_ = process;
 }
 
 void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
 {
-    if(body_height_ != 0.28 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
-        return;
 
-    if (nullptr == cam_info_)
-    {
-    RCLCPP_INFO(get_logger(), "No camera info, skipping point cloud squash");
-    return;
-    }
-    cam_model_.fromCameraInfo(cam_info_);    
     if(image->encoding != sensor_msgs::image_encodings::TYPE_16UC1)
     {
-      std::cout<<"received depth image with unsupported encoding: " << image->encoding.c_str() << std::endl;
-      return;
+        std::cout<<"received depth image with unsupported encoding: " << image->encoding.c_str() << std::endl;
+        return;
     }
+    depth_image_ = image;
+}
+
+void DepthFollower::infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info)
+{
+    cam_info_ = info;
+    if (!camera_info_inited_)
+    {
+        cam_model_.fromCameraInfo(cam_info_); 
+        camera_info_inited_ = true; 
+    }
+}
+
+void DepthFollower::run()
+{
+    // if desired body_height and gait, turn on camera else turn off camera
+    if(body_height_ != 0.28 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
+    {   
+        camera_status_.pop();
+        camera_status_.push(false);
+    }
+    else
+    {
+        camera_status_.pop();
+        camera_status_.push(true);
+    }
+    
+    if(camera_status_.front() == true && camera_status_.back() == false)
+    {
+        try 
+        {
+            camera_service_call(dogs_namespace_ + "camera/enable", false);
+            std::cout<< camera_status_.front() << " " << camera_status_.back() << std::endl;
+        } 
+        catch (...) 
+        {
+            RCLCPP_ERROR(this->get_logger(), "realsense enable error...\n");
+        }
+        
+    }
+    else if (camera_status_.front() == false && camera_status_.back() == true)
+    {
+        try 
+        {
+            camera_service_call(dogs_namespace_ + "camera/enable", true);
+            std::cout<< camera_status_.front() << " " << camera_status_.back() << std::endl;
+        } 
+        catch (...) 
+        {
+            RCLCPP_ERROR(this->get_logger(), "realsense enable error...\n");
+        }
+        
+    }
+
+    if(!camera_enabled_ || nullptr == cam_info_)
+        return;
 
     //X,Y,Z of the centroid
     float x = 0.0;
@@ -150,11 +194,11 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
     float u_mean = 0;
     float v_mean = 0;
 
-    const uint16_t* depth_row = reinterpret_cast<const uint16_t*>(&image->data[0]);
-    int row_step = image->step / sizeof(uint16_t);
-    for (int v = 0; v < (int)image->height; v++, depth_row += row_step)
+    const uint16_t* depth_row = reinterpret_cast<const uint16_t*>(&depth_image_->data[0]);
+    int row_step = depth_image_->step / sizeof(uint16_t);
+    for (int v = 0; v < (int)depth_image_->height; v++, depth_row += row_step)
     {
-        for (int u = 0; u < (int)image->width; u++)
+        for (int u = 0; u < (int)depth_image_->width; u++)
         {
             // float depth = depth_image_proc::DepthTraits<float>::toMeters(depth_row[u]);
             float depth = depth_row[u] * 0.001;
@@ -233,13 +277,8 @@ void DepthFollower::depthCb(const sensor_msgs::msg::Image::SharedPtr image)
             cmdpub_->publish(cmd_vel_msg);
         }
     }
-}
 
-void DepthFollower::infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info)
-{
-  cam_info_ = info;
 }
-
 
 int main(int argc, char** argv)
 {

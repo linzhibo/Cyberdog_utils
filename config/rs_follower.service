@@ -1,0 +1,9 @@
+[Unit]
+Description=Record escooter message systemd service.
+ 
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/mi/bin/rs_follower.sh
+ 
+[Install]
+WantedBy=multi-user.target
