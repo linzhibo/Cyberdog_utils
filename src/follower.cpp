@@ -9,14 +9,14 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     this->declare_parameter<std::string>("depth_topic_cam_info", "/camera/depth/camera_info");
     this->declare_parameter<std::string>("cmd_topic", "/cmd_vel");
     this->declare_parameter<std::string>("namespace", "namespace");
-    this->declare_parameter<double>("min_y", 0.1);
-    this->declare_parameter<double>("max_y", 0.5);
+    this->declare_parameter<double>("min_y", -0.5);
+    this->declare_parameter<double>("max_y", -0.1);
     this->declare_parameter<double>("min_x", -0.3);
     this->declare_parameter<double>("max_x", 0.3);
-    this->declare_parameter<double>("max_z", 1.5);
+    this->declare_parameter<double>("max_z", 2.5);
     this->declare_parameter<double>("goal_z", 0.6);
-    this->declare_parameter<double>("z_scale", 1.0);
-    this->declare_parameter<double>("x_scale", 5.0);
+    this->declare_parameter<double>("z_scale", 2.0);
+    this->declare_parameter<double>("x_scale", 1.5);
     this->declare_parameter<bool>("enabled", true);
     this->declare_parameter<int>("pcl_number", 4000);
 
