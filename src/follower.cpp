@@ -63,6 +63,7 @@ DepthFollower::~DepthFollower()
 
 void DepthFollower::discover_dogs_ns()
 {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     std::string allowed_topic = "motion_msgs/msg/SE3VelocityCMD";
     auto topics_and_types = this->get_topic_names_and_types();
     for (auto it : topics_and_types)
@@ -138,7 +139,7 @@ void DepthFollower::infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info)
 void DepthFollower::run()
 {
     // if desired body_height and gait, turn on camera else turn off camera
-    if(body_height_ != 0.28 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
+    if( std::abs(body_height_ - 0.28) > 0.09 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
     {   
         camera_status_.pop();
         camera_status_.push(false);
