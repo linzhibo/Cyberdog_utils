@@ -9,16 +9,16 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     this->declare_parameter<std::string>("depth_topic_cam_info", "/camera/depth/camera_info");
     this->declare_parameter<std::string>("cmd_topic", "/cmd_vel");
     this->declare_parameter<std::string>("namespace", "namespace");
-    this->declare_parameter<double>("min_y", 0.1);
-    this->declare_parameter<double>("max_y", 0.5);
-    this->declare_parameter<double>("min_x", -0.3);
-    this->declare_parameter<double>("max_x", 0.3);
-    this->declare_parameter<double>("max_z", 1.5);
+    this->declare_parameter<double>("min_y", -0.5);
+    this->declare_parameter<double>("max_y", -0.1);
+    this->declare_parameter<double>("min_x", -0.5);
+    this->declare_parameter<double>("max_x", 0.5);
+    this->declare_parameter<double>("max_z", 2.0);
     this->declare_parameter<double>("goal_z", 0.6);
     this->declare_parameter<double>("z_scale", 1.0);
-    this->declare_parameter<double>("x_scale", 5.0);
+    this->declare_parameter<double>("x_scale", 2.0);
     this->declare_parameter<bool>("enabled", true);
-    this->declare_parameter<int>("pcl_number", 4000);
+    this->declare_parameter<int>("pcl_number", 3000);
 
 
     this->get_parameter("depth_topic", depth_topic_);
@@ -53,7 +53,8 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     param_sub_ = create_subscription<motion_msgs::msg::Parameters>(dogs_namespace_+"para_change", rclcpp::SensorDataQoS(), std::bind(&DepthFollower::paramCb, this,std::placeholders::_1));
     check_gait_sub_ = create_subscription<motion_msgs::action::ChangeGait_FeedbackMessage>(dogs_namespace_+"checkout_gait/_action/feedback", qos, std::bind(&DepthFollower::checkGaitFbCb, this,std::placeholders::_1));
     cmdpub_ = create_publisher<motion_msgs::msg::SE3VelocityCMD>(dogs_namespace_+"body_cmd", qos);
-    // camera_service_call(dogs_namespace_ + "camera/enable", true);
+    audio_client_ = rclcpp_action::create_client<interaction_msgs::action::AudioPlay>(this, dogs_namespace_ + "audio_play");
+
     timer_ = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&DepthFollower::run, this));
 }
 
@@ -63,8 +64,9 @@ DepthFollower::~DepthFollower()
 
 void DepthFollower::discover_dogs_ns()
 {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::string allowed_topic = "motion_msgs/msg/SE3VelocityCMD";
+    // /sys/firmware/devicetree/base/serial-number
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::string allowed_topic = "motion_msgs/msg/Parameters";
     auto topics_and_types = this->get_topic_names_and_types();
     for (auto it : topics_and_types)
     {
@@ -87,11 +89,28 @@ void DepthFollower::checkGaitFbCb(const motion_msgs::action::ChangeGait_Feedback
 {
     std::cout<< "checkGaitFbCb: " <<(int)msg->feedback.current_checking.gait<<std::endl;
     current_gait_ = msg->feedback.current_checking.gait;
+
+    if(std::abs(body_height_ - 0.28) < 0.009 && current_gait_ ==motion_msgs::msg::Gait::GAIT_TROT)
+    {   
+        auto audio_goal = interaction_msgs::action::AudioPlay::Goal();
+        audio_goal.order.name.id = 7;
+        audio_goal.order.user.id = 4;
+        auto audio_goal_handle = audio_client_->async_send_goal(audio_goal); 
+    }
+    
 }
 void DepthFollower::paramCb(const motion_msgs::msg::Parameters::SharedPtr param)
 {
     std::cout<< "paramCb: " << param->body_height<<std::endl;
     body_height_ = param->body_height;
+
+    if(std::abs(body_height_ - 0.28) < 0.009 && current_gait_ ==motion_msgs::msg::Gait::GAIT_TROT)
+    {   
+        auto audio_goal = interaction_msgs::action::AudioPlay::Goal();
+        audio_goal.order.name.id = 7;
+        audio_goal.order.user.id = 4;
+        auto audio_goal_handle = audio_client_->async_send_goal(audio_goal); 
+    }
 }
 
 void DepthFollower::camera_service_call(std::string service_name, bool process)
@@ -139,15 +158,14 @@ void DepthFollower::infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info)
 void DepthFollower::run()
 {
     // if desired body_height and gait, turn on camera else turn off camera
-    if(std::abs(body_height_ - 0.28) > 0.09 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
+    if(std::abs(body_height_ - 0.28) > 0.009 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
     {   
-        std::cout<<"body_height_: " <<body_height_ << " current_gait_: " <<(int)current_gait_ <<std::endl;
+        // std::cout<<"body_height_: " <<body_height_ << " current_gait_: " <<(int)current_gait_ <<std::endl;
         camera_status_.pop();
         camera_status_.push(false);
     }
     else
     {
-        std::cout<<"blablabla"<<std::endl;
         camera_status_.pop();
         camera_status_.push(true);
     }
@@ -180,7 +198,7 @@ void DepthFollower::run()
     }
 
     // std::cout<<"camera_enabled_: " << camera_enabled_ << std::endl;
-    // if(!camera_enabled_ || nullptr == cam_info_)
+    if(!camera_enabled_ || nullptr == cam_info_)
         return;
 
     //X,Y,Z of the centroid
@@ -256,7 +274,7 @@ void DepthFollower::run()
             }
             return;
         }
-        else if(std::abs(z - goal_z_) < 0.1)
+        else if(std::abs(z - goal_z_) < 0.2)
         {
             ROS_INFO_THROTTLE(1, "Close to target, stopping");
             return;

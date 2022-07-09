@@ -1,0 +1,20 @@
+[Unit]
+Description="Cyberdog follower"
+
+[Service]
+User=mi
+Type=idle
+Environment="ROS_DOMAIN_ID=42"
+Environment="ROS_VERSION=2"
+Environment="ROS_PYTHON_VERSION=3"
+Environment="ROS_DISTRO=foxy"
+Environment="LD_LIBRARY_PATH=/opt/ros2/foxy/lib:/opt/ros2/cyberdog/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+Environment="PYTHONPATH=/opt/ros2/foxy/lib/python3.6/site-packages:/opt/ros2/cyberdog/lib/python3.6/site-packages"
+Environment="AMENT_PREFIX_PATH=/opt/ros2/foxy:/opt/ros2/cyberdog"
+
+ExecStart=/opt/ros2/foxy/bin/ros2 run cyberdog_utils rs_follower
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

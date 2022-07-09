@@ -1,32 +1,18 @@
 # Cyberdog Utils
 
-## Remote access jetson nx
+## Realsense depth image centroid follower
+When the height is set to 28cm and the gait set to trot, the dog will bark and enter following mode
 
-**Method 1**
+### **How to build**
 
-- Open phone wifi hotspot
-- Open app, connect to wifi hotspot
-
-On pc, connect to phone wifi hotspot, then use nmap to scan the network
-> sudo nmap -sP 192.168.1.0/24
-
-Install nmap with:
-> sudo apt install nmap
-
-Once the ip detected, to remote access jetson nx:
-> ssh mi@192.168.1.83 
-
-replace the ip adress with yours, password: 123
-
-**Method 2**
-
-- open **pc** wifi hotspot
-- Open app, connect to pc wifi hotspot
-
-Then the same steps from the method above. 
-
-Recommand this method
-
+on your dog:
+```
+mkdir -p ~/ros2_ws/src && cd ~/ros_ws
+git clone https://github.com/linzhibo/Cyberdog_utils.git src/cyberdog_utils
+colcon build --merge-install --install-base /opt/ros2/cyberdog
+sudo cp src/cyberdog_utils/config/cyberdog_follower.service /etc/systemd/system
+```
+Restart your dog.
 
 **Recommanded tools**
 
@@ -47,32 +33,7 @@ scp ../data/wav/* mi@192.168.3.86:/opt/ros2/cyberdog/data/wav/
 ```
 replace ip, reboot the robot.
 
-## Joystick control (testing)
-A lot of the code is based on [Karlsx's code](https://github.com/Karlsx/CyberDog_Ctrl)
-```
-sudo pip3 install pygame grpcio grpcio-tools
-python3 -m grpc_tools.protoc --python_out=. --grpc_python_out=. -I. ./proto/*.proto
-cd scripts/
-python3 joy.py
-```
-It should work with all available joyticks listed in /dev/input/js* .
+## Video demo
 
-## Realsense depth image centroid follower
-Not perfect for the moment but can be tested for fun:
-1. Create a ros2 workspace on cyberdog, clone this repo
-2. In launch/rs_follow.py modify the parameters (put your dog's mi number)
-3. Build this package, you might need to source ros2 environment first
-4. Bring up your cyberdog: connect it to your phone, (ideally use your phone's hotspot if you want to bring it outside) switch to outdoor mode, stand up and get down, this will "active" the dog, because on activation, it will disable realsense camera on outdoor mode.
-5. Enable realsense camera
-```
-ros2 service call /mi999999(put your dog number)/camera/enable std_srvs/SetBool "{data : True}"
-```
-6. stand up again and the dog will follow the centroid point in front of the camera.
-
-# TODO
-- [ ] parameterize instead of changing values in launch file
-- [x] add service call to enable realsense camera instead of command line
-- [ ] add service call to enable follower
-- [ ] add param to enable follower with a gait number
-- [x] automate mi serial detection in launch file, ref athena_common getNamepace()
-- [ ] add script to launch at system start
+## Buy me a naicha
+![naicha](readme_pics/naicha.png)

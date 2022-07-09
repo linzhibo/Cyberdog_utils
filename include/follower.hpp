@@ -10,6 +10,7 @@
 #include <queue>
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <rcutils/logging_macros.h>
 
 #include <geometry_msgs/msg/twist.hpp>
@@ -23,6 +24,8 @@
 #include "motion_msgs/msg/parameters.hpp"
 #include "motion_msgs/action/change_gait.hpp"
 #include "motion_msgs/msg/gait.hpp"
+#include "interaction_msgs/action/audio_play.hpp"
+
 #include "depth_traits.h"
 
 class DepthFollower : public rclcpp::Node
@@ -52,6 +55,7 @@ private:
     rclcpp::Subscription<motion_msgs::msg::Parameters>::SharedPtr param_sub_;
     rclcpp::Subscription<motion_msgs::action::ChangeGait_FeedbackMessage>::SharedPtr check_gait_sub_;
     rclcpp::Publisher<motion_msgs::msg::SE3VelocityCMD>::SharedPtr cmdpub_;
+    rclcpp_action::Client<interaction_msgs::action::AudioPlay>::SharedPtr audio_client_;
 
     double min_y_ = 0.1; /**< The minimum y position of the points in the box. */
     double max_y_ = 0.5; /**< The maximum y position of the points in the box. */
@@ -62,7 +66,7 @@ private:
     double z_scale_ = 1.0; /**< The scaling factor for translational robot speed */
     double x_scale_ = 5.0; /**< The scaling factor for rotational robot speed */
     bool   enabled_ = true; /**< Enable/disable following; just prevents motor commands */
-    uint    thresh_pcl_number_ = 4000; /**< Threshold for minimum available pointcloud number*/
+    uint   thresh_pcl_number_ = 4000; /**< Threshold for minimum available pointcloud number*/
     std::string depth_topic_, cmd_topic_, depth_topic_cam_info_, namespace_;
     bool camera_enabled_ = false;
     double body_height_ = 0.0;

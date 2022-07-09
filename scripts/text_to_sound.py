@@ -11,11 +11,11 @@ import wave
 import io 
 
 # if quota exceeded, use your own baidu account
-APP_ID = '24846657'
-API_KEY = 'pgnBOTAtFMCkxXHGseNhBcbc'
-SECRET_KEY = 'Ya9UGYdGCm1eRi8wGhGgGiodNACGh9gE'
+APP_ID = '26004398'
+API_KEY = 'xlpwaTsK42K5v4qQO8GZuDZR'
+SECRET_KEY = 'oqZuIchTzf9BHrOT98S55wbRCMPlmFDc'
 client = AipSpeech(APP_ID, API_KEY, SECRET_KEY)
-wav_path = "/opt/ros/777.wav"
+wav_path = "/opt/ros2/cyberdog/data/wav/777.wav"
 
 def mp3_to_wav(data, wav_path):
     aud = io.BytesIO(data)
