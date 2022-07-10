@@ -37,4 +37,4 @@ replace ip, reboot the robot.
 ## Video demo
 
 ## Buy me a naicha
-<img src="/readme_pics/naicha.png">
+![naicha](readme_pics/naicha.png)
