@@ -7,7 +7,7 @@ When the height is set to 28cm and the gait set to trot, the dog will bark and e
 
 on your dog:
 ```
-mkdir -p ~/ros2_ws/src && cd ~/ros_ws
+mkdir -p ~/ros2_ws/src && cd ~/ros2_ws
 git clone https://github.com/linzhibo/Cyberdog_utils.git src/cyberdog_utils
 colcon build --merge-install --install-base /opt/ros2/cyberdog
 sudo cp src/cyberdog_utils/config/cyberdog_follower.service /etc/systemd/system
