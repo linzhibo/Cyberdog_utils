@@ -37,4 +37,4 @@ replace ip, reboot the robot.
 ## Video demo
 
 ## Buy me a naicha
-<img src="https://github.com/linzhibo/Cyberdog_utils/blob/main/readme_pics/naicha.png">
+<img src="/readme_pics/naicha.png">
