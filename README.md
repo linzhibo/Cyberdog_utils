@@ -11,6 +11,7 @@ mkdir -p ~/ros2_ws/src && cd ~/ros_ws
 git clone https://github.com/linzhibo/Cyberdog_utils.git src/cyberdog_utils
 colcon build --merge-install --install-base /opt/ros2/cyberdog
 sudo cp src/cyberdog_utils/config/cyberdog_follower.service /etc/systemd/system
+sudo systemctl enable cyberdog_follower.service 
 ```
 Restart your dog.
 

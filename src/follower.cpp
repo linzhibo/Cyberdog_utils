@@ -11,9 +11,9 @@ DepthFollower::DepthFollower(): rclcpp::Node("depth_follower")
     this->declare_parameter<std::string>("namespace", "namespace");
     this->declare_parameter<double>("min_y", -0.5);
     this->declare_parameter<double>("max_y", -0.1);
-    this->declare_parameter<double>("min_x", -0.5);
-    this->declare_parameter<double>("max_x", 0.5);
-    this->declare_parameter<double>("max_z", 2.0);
+    this->declare_parameter<double>("min_x", -0.4);
+    this->declare_parameter<double>("max_x", 0.4);
+    this->declare_parameter<double>("max_z", 2.5);
     this->declare_parameter<double>("goal_z", 0.6);
     this->declare_parameter<double>("z_scale", 1.0);
     this->declare_parameter<double>("x_scale", 2.0);
