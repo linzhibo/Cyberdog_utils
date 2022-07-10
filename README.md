@@ -37,4 +37,4 @@ replace ip, reboot the robot.
 ## Video demo
 
 ## Buy me a naicha
-[naicha.png](https://postimg.cc/Lq9fWWvx)
+[![naicha.png](https://i.postimg.cc/3wpBk5GQ/naicha.png)](https://postimg.cc/Lq9fWWvx)

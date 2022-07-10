@@ -64,14 +64,9 @@ DepthFollower::~DepthFollower()
 
 void DepthFollower::discover_dogs_ns()
 {
-<<<<<<< HEAD
     // /sys/firmware/devicetree/base/serial-number
     std::this_thread::sleep_for(std::chrono::seconds(10));
     std::string allowed_topic = "motion_msgs/msg/Parameters";
-=======
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::string allowed_topic = "motion_msgs/msg/SE3VelocityCMD";
->>>>>>> cdf458fd56dec15284554abba363adefbbbe5a71
     auto topics_and_types = this->get_topic_names_and_types();
     for (auto it : topics_and_types)
     {
@@ -163,11 +158,7 @@ void DepthFollower::infoCb(sensor_msgs::msg::CameraInfo::SharedPtr info)
 void DepthFollower::run()
 {
     // if desired body_height and gait, turn on camera else turn off camera
-<<<<<<< HEAD
     if(std::abs(body_height_ - 0.28) > 0.009 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
-=======
-    if( std::abs(body_height_ - 0.28) > 0.09 || current_gait_ !=motion_msgs::msg::Gait::GAIT_TROT)
->>>>>>> cdf458fd56dec15284554abba363adefbbbe5a71
     {   
         // std::cout<<"body_height_: " <<body_height_ << " current_gait_: " <<(int)current_gait_ <<std::endl;
         camera_status_.pop();
